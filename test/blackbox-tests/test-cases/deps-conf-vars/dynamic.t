@@ -6,13 +6,13 @@ the new code simply doesn't detect it. We should add a proper version check for
 this feature.
 
   $ echo "(lang dune 1.6)" > dune-project
+  $ echo -n bar > foo
   $ cat >dune <<EOF
   > (alias
   >  (name default)
   >  (deps %{read:foo}))
   > EOF
   $ dune build
-  Error: No rule found for foo
-  -> required by %{read:foo} at dune:3
+  Error: No rule found for bar
   -> required by alias default in dune:1
   [1]
