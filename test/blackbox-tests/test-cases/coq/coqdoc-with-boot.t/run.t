@@ -10,6 +10,7 @@ Testing coqdoc when composed with a boot library
   A.html
   a.glob
   a.v
+  a.v.d
   a.vo
   a.vok
   a.vos
