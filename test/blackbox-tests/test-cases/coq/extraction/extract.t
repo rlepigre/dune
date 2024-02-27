@@ -46,6 +46,7 @@
   extract.ml
   extract.mli
   extract.v
+  extract.v.d
   extract.vo
   extract.vok
   extract.vos

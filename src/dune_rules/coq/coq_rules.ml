@@ -590,8 +590,11 @@ let memo_get_dep_map =
     (fun (dir, wrapper_name) -> get_dep_map ~dir ~wrapper_name)
 ;;
 
-let deps_of ~dir ~boot_type ~wrapper_name ~mode coq_module =
-  let open Action_builder.O in
+let dep_file_file coq_module =
+  Path.set_extension ~ext:".v.d" (Coq_module.source coq_module)
+;;
+
+let deps_of_map ~dir ~wrapper_name ~mode ~boot_type coq_module : _ Action_builder.t =
   let vo_target =
     let ext =
       match mode with
@@ -600,8 +603,9 @@ let deps_of ~dir ~boot_type ~wrapper_name ~mode coq_module =
     in
     Path.set_extension ~ext (Coq_module.source coq_module)
   in
+  let open Action_builder.O in
   let* dep_map = Action_builder.exec_memo memo_get_dep_map (dir, wrapper_name) in
-  let* boot_type = Resolve.Memo.read boot_type in
+  let+ boot_type = Resolve.Memo.read boot_type in
   match Dep_map.find dep_map vo_target with
   | None ->
     Code_error.raise
@@ -617,7 +621,56 @@ let deps_of ~dir ~boot_type ~wrapper_name ~mode coq_module =
       | Bootstrap.No_stdlib | Bootstrap.Implicit -> deps
       | Bootstrap.Stdlib lib -> Path.relative (Coq_lib.obj_root lib) prelude :: deps
     in
-    Action_builder.paths deps
+    deps
+;;
+
+let encode_deps deps =
+  let pp_path fmt path = Format.pp_print_string fmt (Path.to_string path) in
+  let pp_sep = Format.pp_print_space in
+  Format.(asprintf "@[<h>%a@]" (pp_print_list ~pp_sep pp_path) deps)
+;;
+
+let decode_deps line =
+  String.extract_blank_separated_words line |> List.map ~f:Path.of_string
+;;
+
+let setup_coqdep_for_file_rule
+  ~sctx
+  ~scope
+  ~use_stdlib
+  ~coq_lang_version
+  ~loc
+  ~dir
+  ~wrapper_name
+  ~mode
+  coq_module
+  : unit Memo.t
+  =
+  let boot_type =
+    Bootstrap.make ~scope ~use_stdlib ~wrapper_name ~coq_lang_version coq_module
+  in
+  (* XXX ! *)
+  let file = dep_file_file coq_module |> Path.as_in_build_dir_exn in
+  let deps : string Action_builder.t =
+    let open Action_builder.O in
+    let+ deps = deps_of_map ~dir ~wrapper_name ~mode ~boot_type coq_module in
+    encode_deps deps
+  in
+  Super_context.add_rule
+    ~loc
+    sctx
+    ~dir
+    (* Note that Action_builder.With_targets doesn't provide bind,
+       hence this problem! *)
+    (Action_builder.write_file_dyn file deps)
+;;
+
+let deps_of coq_module : unit Action_builder.t =
+  let open Action_builder.O in
+  let file = dep_file_file coq_module in
+  let* lines = Action_builder.lines_of file in
+  let deps = decode_deps (List.hd lines) in
+  Action_builder.paths deps
 ;;
 
 let generic_coq_args
@@ -722,7 +775,7 @@ let setup_coqc_rule
       ~coq_prog:`Coqc
       coq_module
   in
-  let deps_of = deps_of ~dir ~boot_type ~wrapper_name ~mode coq_module in
+  let deps_of = deps_of coq_module in
   let open Action_builder.With_targets.O in
   Super_context.add_rule
     ~loc
@@ -954,6 +1007,18 @@ let setup_theory_rules ~sctx ~dir ~dir_contents (s : Coq_stanza.Theory.t) =
   >>> Memo.parallel_iter
         coq_modules
         ~f:
+          (setup_coqdep_for_file_rule
+             ~sctx
+             ~scope
+             ~use_stdlib
+             ~coq_lang_version
+             ~loc
+             ~dir
+             ~wrapper_name
+             ~mode)
+  >>> Memo.parallel_iter
+        coq_modules
+        ~f:
           (setup_coqc_rule
              ~scope
              ~loc
@@ -1160,6 +1225,16 @@ let setup_extraction_rules ~sctx ~dir ~dir_contents (s : Coq_stanza.Extraction.t
     ~mlpack_rule
     ~coq_lang_version
     [ coq_module ]
+  >>> setup_coqdep_for_file_rule
+        ~sctx
+        ~scope
+        ~use_stdlib
+        ~coq_lang_version
+        ~loc
+        ~dir
+        ~wrapper_name
+        ~mode
+        coq_module
   >>> setup_coqc_rule
         ~scope
         ~file_targets
@@ -1206,11 +1281,4 @@ let coqtop_args_extraction ~sctx ~dir (s : Coq_stanza.Extraction.t) coq_module =
 ;;
 
 (* Version for export *)
-let deps_of ~dir ~use_stdlib ~wrapper_name ~mode ~coq_lang_version coq_module =
-  let boot_type =
-    let open Memo.O in
-    let* scope = Scope.DB.find_by_dir dir in
-    Bootstrap.make ~scope ~use_stdlib ~wrapper_name ~coq_lang_version coq_module
-  in
-  deps_of ~dir ~boot_type ~wrapper_name ~mode coq_module
-;;
+let deps_of coq_module = deps_of coq_module

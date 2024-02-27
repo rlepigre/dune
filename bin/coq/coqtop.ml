@@ -82,7 +82,7 @@ let term =
             [ Pp.textf "Cannot find file: %s" (coq_file_arg |> Path.Local.to_string) ]
       in
       let stanza = Dune_rules.Coq.Coq_sources.lookup_module coq_src coq_module in
-      let args, use_stdlib, coq_lang_version, wrapper_name, mode =
+      let args =
         match stanza with
         | None ->
           User_error.raise
@@ -91,41 +91,21 @@ let term =
                 (coq_file_arg |> Path.Local.to_string)
             ]
         | Some (`Theory theory) ->
-          ( Dune_rules.Coq.Coq_rules.coqtop_args_theory
-              ~sctx
-              ~dir
-              ~dir_contents:dc
-              theory
-              coq_module
-          , theory.buildable.use_stdlib
-          , theory.buildable.coq_lang_version
-          , Dune_rules.Coq.Coq_lib_name.wrapper (snd theory.name)
-          , theory.buildable.mode )
+          Dune_rules.Coq.Coq_rules.coqtop_args_theory
+            ~sctx
+            ~dir
+            ~dir_contents:dc
+            theory
+            coq_module
         | Some (`Extraction extr) ->
-          ( Dune_rules.Coq.Coq_rules.coqtop_args_extraction ~sctx ~dir extr coq_module
-          , extr.buildable.use_stdlib
-          , extr.buildable.coq_lang_version
-          , "DuneExtraction"
-          , extr.buildable.mode )
+          Dune_rules.Coq.Coq_rules.coqtop_args_extraction ~sctx ~dir extr coq_module
       in
       (* Run coqdep *)
       let* (_ : unit * Dep.Fact.t Dep.Map.t) =
         let deps_of =
           if no_rebuild
           then Action_builder.return ()
-          else (
-            let mode =
-              match mode with
-              | None -> Dune_rules.Coq.Coq_mode.VoOnly
-              | Some mode -> mode
-            in
-            Dune_rules.Coq.Coq_rules.deps_of
-              ~dir
-              ~use_stdlib
-              ~wrapper_name
-              ~mode
-              ~coq_lang_version
-              coq_module)
+          else Dune_rules.Coq.Coq_rules.deps_of coq_module
         in
         Action_builder.evaluate_and_collect_facts deps_of
       in

@@ -7,16 +7,9 @@ open Import
 (* Written by: Emilio Jesús Gallego Arias      *)
 (* Written by: Rudi Grinberg                   *)
 
-(** [deps_of ~dir ~use_stdlib ~wrapper_name coq_module] action that builds the
+(** [deps_of coq_module] action that builds the
     deps of [coq_module] *)
-val deps_of
-  :  dir:Path.Build.t
-  -> use_stdlib:bool
-  -> wrapper_name:string
-  -> mode:Coq_mode.t
-  -> coq_lang_version:Dune_sexp.Syntax.Version.t
-  -> Coq_module.t
-  -> unit Dune_engine.Action_builder.t
+val deps_of : Coq_module.t -> unit Dune_engine.Action_builder.t
 
 (** ** Rules for Coq stanzas *)
 
