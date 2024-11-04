@@ -67,6 +67,7 @@ The Coq theory stanza is very similar in form to the OCaml
      (plugins <ocaml_plugins>)
      (flags <coq_flags>)
      (modules_flags <flags_map>)
+     (coqdep_flags <coqdep_flags>)
      (coqdoc_flags <coqdoc_flags>)
      (stdlib <stdlib_included>)
      (mode <coq_native_mode>)
@@ -133,6 +134,11 @@ The semantics of the fields are:
   flags, but that should be done using ``(:standard <flag1> <flag2>
   ...)`` as to propagate the default flags. (Appeared in :ref:`Coq
   lang 0.9<coq-lang>`)
+
+- ``<coqdep_flags>`` are extra user-configurable flags passed to ``coqdep``. The
+  default value for ``:standard`` is empty. (Appeared in :ref:`Coq
+  lang 0.10<coq-lang>`)
+
 
 - ``<coqdoc_flags>`` are extra user-configurable flags passed to ``coqdoc``. The
   default value for ``:standard`` is ``--toc``. The ``--html`` or ``--latex``
@@ -833,6 +839,9 @@ with the following values for ``<coq_fields>``:
 - ``(flags <flags>)``: The default flags passed to ``coqc``. The default value
   is ``-q``. Values set here become the ``:standard`` value in the
   ``(coq.theory (flags <flags>))`` field. 
+- ``(coqdep_flags <flags>)``: The default flags passed to ``coqdep``. The default
+  value is empty. Values set here become the ``:standard`` value in the
+  ``(coq.theory (coqdep_flags <flags>))`` field.
 - ``(coqdoc_flags <flags>)``: The default flags passed to ``coqdoc``. The default
   value is ``--toc``. Values set here become the ``:standard`` value in the
   ``(coq.theory (coqdoc_flags <flags>))`` field.
